@@ -1,19 +1,17 @@
+import os
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 from torchvision import datasets, transforms
-from torchvision.ops import nms
-from torchvision.utils import draw_bounding_boxes
-from torchvision.models.detection import fasterrcnn_resnet50_fpn  
-import torch.nn as nn
+from torch.nn import CrossEntropyLoss, SmoothL1Loss
 from torch.nn.functional import softmax
 import torch.optim as optim
 import cv2 as cv
 import numpy as np
 from model import NeuralNetwork
-from torchinfo import summary
 import os
 from PIL import Image 
 
+from methods import loadModelResultCustomCNN, openImageWithOpenCV, checkForAnnotation, checkDirectoryForModel
 
 
 
@@ -38,24 +36,10 @@ which converts the output of each class into the probability score of each class
 # What are all the different models to use in pytorch for image recognition?
 model = SimpleNet()
 
-
-
-
 """
 
-def checkDirectoryForModel():
-  dir = "saved_models"
-  if os.path.exists(dir):
-    print(f">>> Folder {dir} already exists.")
-  else:
-    os.makedirs(dir, exist_ok=True)
-    print(f">>> Created {dir} folder.")
-
-# Load data, Prepare data
-def processData(batch):
-  train_data_src = "train_data"
-  test_data_src = "test_data"
-
+# return Dataset with image and label first
+class CustomDataSet(Dataset):
   train_transforms = transforms.Compose([transforms.RandomRotation(30),
                                         transforms.RandomResizedCrop(224),
                                         transforms.RandomHorizontalFlip(),
@@ -65,139 +49,159 @@ def processData(batch):
                                       transforms.RandomResizedCrop(224),
                                       transforms.ToTensor()])
 
+  
 
-  train_data = datasets.ImageFolder(train_data_src, transform=train_transforms)
-  test_data = datasets.ImageFolder(test_data_src, transform=test_transforms)
+  def __init__(self,path,csv_file, train=True):
+    self.path = path
+    self.csv_file = csv_file
+    if train:
+      self.data = datasets.ImageFolder(self.path, transform=self.train_transforms)
+    else:
+      self.data = datasets.ImageFolder(self.path, transform=self.test_transforms)
+    self.classes = {0:"notatank", 1:"tank"}
+    self.samples = self.data.samples
 
-  train_loader = DataLoader(dataset=train_data, batch_size=batch, shuffle=True)
-  test_loader = DataLoader(dataset=test_data, batch_size=batch, shuffle=True)
+  def __len__(self):
+    return len(self.data)
 
-  return train_loader, test_loader, train_data.classes
+  def __getitem__(self, idx):
+    image, class_id = self.data[idx]
+    bbox = torch.zeros(4, dtype=torch.float32)
+    if class_id == 1:
+      res = str(self.samples[idx][:1])[20:]
+      bbox_data = checkForAnnotation(searchtag=res, csv_file=self.csv_file)
+      if bbox_data is not None:
+        bbox = torch.tensor(bbox_data, dtype=torch.float32)
+        
+    class_name = torch.as_tensor(class_id, dtype=torch.float32)
+    return image, {"label":class_name, "boxes":bbox}
+
+# Load data, Prepare data
+def processData():
+  train_data_src = "train_data"
+  test_data_src = "test_data"
+
+  train_set = CustomDataSet(path=train_data_src, csv_file="annotations.csv", train=True)
+  test_set = CustomDataSet(path=test_data_src, csv_file="annotations.csv", train=False)
+
+  train_loader = DataLoader(dataset=train_set, batch_size=32, shuffle=True)
+  test_loader = DataLoader(dataset=test_set, batch_size=32, shuffle=True)
+
+  return train_loader, test_loader
 
 # Training the neural network
-def trainAndEvaluate(model, device, train_loader, test_loader):
-  num_epochs = 30
-
+def trainAndEvaluate(model, device, train_loader, test_loader, num_epochs:int=10):
   accuracies = []
   losses = []
 
   val_accuracies = []
   val_losses = []
 
-  criterion = nn.CrossEntropyLoss()
+  criterion_label = CrossEntropyLoss()
+  criterion_bbox = SmoothL1Loss()
   optimizer = optim.Adam(model.parameters(), lr=0.001)
 
   for epoch in range(num_epochs): 
     model.train()
     for i, (images, labels) in enumerate(train_loader):     
-      
-      if images.size(0) != labels.size(0):
-        raise ValueError(f"Expected input batch_size ({images.size(0)}) to match target batch_size ({labels.size(0)})")
-      
+      optimizer.zero_grad()
+      # if images.size(0) != labels.size(0):
+      #   raise ValueError(f"Expected input batch_size ({images.size(0)}) to match target batch_size ({labels.size(0)})")
+    
       # Forward pass 
       images = images.to(device)
-      labels = labels.to(device)
-      outputs = model(images)
-      loss = criterion(outputs, labels)
+      class_name = labels["label"].to(device).long()
+      bbox = labels["boxes"].to(device)
+      output_label, output_bbox = model(images)
       
-      # Backward pass 
-      optimizer.zero_grad()
+      positive_anno = torch.where(class_name == 1)
+      out_bbox_filter = output_bbox[positive_anno]
+      box_anno_filter = bbox[positive_anno]
+      
+      loss_label = criterion_label(output_label, class_name)
+      
+      if len(positive_anno[0]) > 0:
+        loss_bbox = criterion_bbox(out_bbox_filter, box_anno_filter)
+      else:
+        loss_bbox = torch.tensor(0.0).to(device)
+
+      loss = loss_label * (loss_bbox*0.001)
       loss.backward()
       optimizer.step()
 
-      
-    _, predicted = torch.max(outputs.data, 1)
-    acc = (predicted == labels).sum().item() / labels.size(0)
+      _, predicted = torch.max(output_label.data, 1)
+    acc = (predicted == class_name).sum().item() / class_name.size(0)
     accuracies.append(acc)
     losses.append(loss.item())
 
-    model.eval()
-    val_loss = 0.0
-    val_acc = 0.0
-
     with torch.no_grad():
       for images, labels in test_loader:
-        labels = labels.to(device)
         images = images.to(device)
-        outputs = model(images)
-        loss = criterion(outputs, labels)
-        val_loss += loss.item()
+        class_name = labels["label"].to(device).long()
+        bbox = labels["boxes"].to(device)
+        output_label, output_bbox = model(images)
 
-      _, predicted = torch.max(outputs.data, 1)
-      total = labels.size(0)
-      correct = (predicted == labels).sum().item()
-      val_acc += correct / total
+        positive_anno = torch.where(class_name == 1)
+        out_bbox_filter = output_bbox[positive_anno]
+        box_anno_filter = bbox[positive_anno]
+        
+        loss_label = criterion_label(output_label, class_name)
+        
+        if len(positive_anno[0]) > 0:
+          loss_bbox = criterion_bbox(out_bbox_filter, box_anno_filter)
+        else:
+          loss_bbox = torch.tensor(0.0).to(device)
 
-      val_accuracies.append(acc)
-      val_losses.append(loss.item())
+        val_loss = loss_label * (loss_bbox*0.001)
+        optimizer.step()
+
+        _, predicted = torch.max(output_label.data, 1)
+      correct = (predicted == class_name).sum().item()
+
+      val_acc = correct / class_name.size(0)
+      val_accuracies.append(val_acc)
+      val_losses.append(val_loss.item())
 
     print('Epoch [{}/{}],Loss:{:.4f},Validation Loss:{:.4f},Accuracy:{:.2f},Validation Accuracy:{:.2f}'.format( 
-          epoch+1, num_epochs, loss.item(), val_loss, acc ,val_acc))
+           epoch, num_epochs, loss.item(), val_loss.item(), acc, val_acc))
 
-    model_name = f"test_epoch_{epoch}.pth"
+    model_name = f"v5_better_bb_{epoch}.pth"
     save_path = os.path.join("saved_models", model_name)
     torch.save(model.state_dict(), save_path)
 
-def loadModelResult(model, image_path, model_file):
-  model = NeuralNetwork()
-  model.load_state_dict(torch.load(model_file))
-  tensor_image, w, h = prepareImage(image_path=image_path)
-  model.eval()
-  output = model(tensor_image)
-  prediction = softmax(output, dim=1)
-  return tensor_image, prediction, w, h
+#Opencv, prepare image, prediction
+def train(model, device, num_epochs):
+  checkDirectoryForModel()
+  train_data, test_data = processData()
+  trainAndEvaluate(model=model, device=device, train_loader=train_data, test_loader=test_data, num_epochs=num_epochs)
 
-def prepareImage(image_path):
-  original_image = cv.imread(image_path)
-  h,w,_ = original_image.shape
-  rgb_image = cv.cvtColor(original_image, cv.COLOR_BGR2RGB)
-  pil_image = Image.fromarray(rgb_image)
-  transform = transforms.Compose([
-      transforms.Resize((224,224)),
-      transforms.ToTensor()
-    ])
-  tensor_image = transform(pil_image)
-  image = torch.unsqueeze(tensor_image, 0)
-  return image, w, h
-
-def openImageWithOpenCV(tensor_image, width, height, prediction):
-  small_image = tensor_image[0].permute(1,2,0).numpy()
-  transform = transforms.Compose([
-    transforms.Resize((width,height)),
-    transforms.ToTensor()
-  ])
-
-  pred_val = round(prediction[0][1].item(), 3) * 100
-  normal_image = cv.resize(small_image, (width, height))
-  cv.putText(normal_image, f"{pred_val}%", (10,50), 2, 2, (255,0,0), 2)
-  cv.imshow("Image", normal_image)
+def testing():
+  file = "randomimages/positive604.jpg"
+  x,y,w,h = [220,76,646,470]
+  img = cv.imread(file)
+  cv.rectangle(img, (x,y), (w,h), (250,0,0), 1)
+  cv.imshow("image", img)
   if cv.waitKey(0) == ord("q"):
-      cv.destroyAllWindows()
-
-
-
-
+    cv.destroyAllWindows()
 
 def main():
   # Input data
-  real_image = "image.jpg"
-  model_file = "first_attempt.pth"
+  real_image = "randomimages/t90.jpg"
+  model_file = "v5_better_bb_25.pth"
 
   device = "cuda" if torch.cuda.is_available() else "cpu"
-  #model = NeuralNetwork()
-  model = fasterrcnn_resnet50_fpn()
+  model = NeuralNetwork()
   model.to(device)
 
   # Train
-  #checkDirectoryForModel()
-  #train_data, test_data, classes = processData(batch=32)
-  #trainAndEvaluate(model=model, device=device, train_loader=train_data, test_loader=test_data)
+  #train(model=model, device=device, num_epochs=75)
   
-  tensor_image, prediction, w, h = loadModelResult(model=model, image_path=real_image, model_file=model_file)
-  openImageWithOpenCV(tensor_image, width=w, height=h, prediction=prediction)
-  
+  tensor_image, prediction, bbox, w, h = loadModelResultCustomCNN(model=model, image_path=real_image, model_file=model_file)
+  openImageWithOpenCV(tensor_image, width=w, height=h, prediction=prediction, bounding_box=bbox)
 
 
 if __name__ == "__main__":
   main()
+
+
 
