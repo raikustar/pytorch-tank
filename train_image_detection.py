@@ -148,7 +148,7 @@ def trainAndEvaluateRCNN(train_loader, test_loader,checkpoint_path=None, num_epo
     end_time = timeToString()
     
     data_print = f"Epoch: {epoch}, Loss: {avg_train_loss}, Learning rate: {scheduler_sgd.get_last_lr()}, Start:{start_time} - End:{end_time}, Prediction: {p}.\n" 
-    with open("data_batchsize6_two.txt", "a") as f:
+    with open("data.txt", "a") as f:
       f.write(data_print)     
     
 

@@ -1,6 +1,6 @@
-torch
-torchvision
 numpy
 matplotlib
 opencv-contrib-python
 torchinfo
+pandas
+torchmetrics
