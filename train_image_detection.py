@@ -156,7 +156,7 @@ def train():
   cudnn.benchmark = True
   checkDirectoryForModel()
   train_data, test_data = processData()
-  trainAndEvaluateRCNN(train_loader=train_data, test_loader=test_data, checkpoint_path="saved_models/v8_169.pth")
+  trainAndEvaluateRCNN(train_loader=train_data, test_loader=test_data, checkpoint_path="saved_models/v8_170.pth")
 
 def timeToString():
   time_now = str(datetime.datetime.now())
