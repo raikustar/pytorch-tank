@@ -6,6 +6,7 @@ import numpy as np
 import os
 from PIL import Image 
 import random
+from typing import List,Tuple,Dict
 
 def prepareImage(image_path):
   original_image = cv.imread(image_path)
@@ -152,38 +153,47 @@ def randomValue():
   col = (b,g,r)
   return col
 
-def scaleCoords(coords, original_shape, size):
+def scale_coords(coords:list, 
+  original_shape:Tuple[int,int,int], 
+  size:int = 640
+) -> list:
   y_scale, x_scale = original_shape[0] / size, original_shape[1] / size
   
   coords[0] *= x_scale
   coords[1] *= y_scale 
   coords[2] *= x_scale 
   coords[3] *= y_scale 
-  if coords[3] > original_shape[0]:
-    coords[3] = original_shape[0]
+  coords[3] = min(coords[3], original_shape[0])
 
-  coords = [int(checkForNegative(i)) for i in coords]
+  coords = [int(max(i, 0)) for i in coords]
   return coords
 
-def checkForNegative(value:float):
-  if value < 0:
-    value = 0
-  return value
-
-def yoloDetection(arr:np.ndarray, original_image, percentage_found:float = 0.25):
-  # handle border colours
-  #
-
-
-  scale_coords = scaleCoords
+def yoloDetection(arr:np.ndarray, 
+  original_image:np.ndarray, 
+  percentage_found:float = 0.25
+) -> None:
+  
+  
+  scale_coord = scale_coords
   object_name = {1:"Russian tank", 2:"BMP1/2", 3:"BMP3"}
-  coords, conf, name = arr[:4], arr[4], int(arr[5])
-  coords = scale_coords(coords, original_image.shape, 640)
+  try:
+    coords, conf, name = arr[:4], arr[4], int(arr[5])
+  except Exception as e:
+    print(e)
+    return
+  
+  coords = scale_coord(coords, original_image.shape, 640)
   x,y,w,h = coords
+  # handle border colours
+  box_col = (250,0,250)
+  
+  box_font = cv.FONT_HERSHEY_COMPLEX
+  text_color = (0,0,0)
+
   if conf > percentage_found:
-    cv.rectangle(original_image, (x,y), (w,h), (250,250,0), 2)
-    cv.rectangle(original_image, (x,h), (x+270,h-30), (250,250,0), -1)
+    cv.rectangle(original_image, (x,y), (w,h), box_col, 2)
+    cv.rectangle(original_image, (x,h), (x+270,h-30), box_col, -1)
     conf = round(conf * 100) 
     text = f"{object_name[name]}: {conf}%"
-    cv.putText(original_image, text, (x+5,h-5),cv.FONT_HERSHEY_COMPLEX,0.8, (0,0,0))
+    cv.putText(original_image, text, (x+5,h-5),box_font,0.8, text_color)
     

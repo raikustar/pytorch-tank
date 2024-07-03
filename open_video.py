@@ -40,7 +40,6 @@ def openVideo(model, video_path):
 
         pred = non_max_suppression(pred, conf_thres=confidence,iou_thres=threshold)
         prediction = torch.detach(pred[0]).cpu().numpy()
-        print(prediction)
         for det in prediction:
             yolo_detection(det, frame, percentage_found=0.25)
 
@@ -61,7 +60,7 @@ def modelReady(model_file):
 def main():
   # Input data
   model = modelReady(model_file="mil.pt")
-  openVideo(video_path="video/bikes.mp4", model=model)
+  openVideo(video_path="video/vid2.mp4", model=model)
 
 
 if __name__ == "__main__":
