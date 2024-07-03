@@ -1,3 +1,4 @@
+import torch
 from torchvision import transforms
 from torchvision.ops import nms
 import cv2 as cv
@@ -34,6 +35,7 @@ def resizeBoundingBoxData(box, im_w,im_h) -> list:
 
 def openImageWithOpenCV(image_path,boxes, labels, scores, nms_index, hitrate:float = 0.7):
   normal_image = cv.imread(image_path)
+  print(scores)
   box_arr = []
   for idx, d in enumerate(nms_index):
     if scores[d] >= hitrate:
@@ -96,6 +98,23 @@ def checkForAnnotation(searchtag:str, csv_file):
       if isinstance(ret, list):
         return ret
 
+def reworkFrameType(frame):
+  img = cv.resize(frame, (640,640),interpolation=cv.INTER_LINEAR)
+  img = cv.cvtColor(img, cv.COLOR_RGB2BGR)
+  img = img.transpose((2,0,1)).astype(np.float32)
+  img /= 255.0
+  img = np.expand_dims(img, axis=0)
+  return torch.from_numpy(img)
+
+def processedFrame(frame,coord,confidence,name):
+    object_dict = {"Russian tank": (0,55,255), "BMP1/2": (0,255,220), "BMP3": (0,255,70)}
+    text = f"{confidence}%: {name}"
+    x,y,w,h = coord
+    cv.rectangle(frame, (x,y), (w,h), object_dict[name], 1)
+    cv.rectangle(frame, (x,y), (x+275,y+35), object_dict[name],-1)
+    cv.putText(frame, text, (x+5,y+25), cv.FONT_HERSHEY_COMPLEX, 0.8, (0,0,0), 1)
+    return frame
+
 def filterString(search_tag:str,val) -> list:
 
   if not isinstance(search_tag, str):
@@ -126,9 +145,45 @@ def checkDirectoryForModel():
     os.makedirs(dir, exist_ok=True)
     print(f">>> Created {dir} folder.")
 
-def randomValue():
+def randomValue(): 
   r = random.randint(0,250)
   g = random.randint(0,250)
   b = random.randint(0,250)
   col = (b,g,r)
   return col
+
+def scaleCoords(coords, original_shape, size):
+  y_scale, x_scale = original_shape[0] / size, original_shape[1] / size
+  
+  coords[0] *= x_scale
+  coords[1] *= y_scale 
+  coords[2] *= x_scale 
+  coords[3] *= y_scale 
+  if coords[3] > original_shape[0]:
+    coords[3] = original_shape[0]
+
+  coords = [int(checkForNegative(i)) for i in coords]
+  return coords
+
+def checkForNegative(value:float):
+  if value < 0:
+    value = 0
+  return value
+
+def yoloDetection(arr:np.ndarray, original_image, percentage_found:float = 0.25):
+  # handle border colours
+  #
+
+
+  scale_coords = scaleCoords
+  object_name = {1:"Russian tank", 2:"BMP1/2", 3:"BMP3"}
+  coords, conf, name = arr[:4], arr[4], int(arr[5])
+  coords = scale_coords(coords, original_image.shape, 640)
+  x,y,w,h = coords
+  if conf > percentage_found:
+    cv.rectangle(original_image, (x,y), (w,h), (250,250,0), 2)
+    cv.rectangle(original_image, (x,h), (x+270,h-30), (250,250,0), -1)
+    conf = round(conf * 100) 
+    text = f"{object_name[name]}: {conf}%"
+    cv.putText(original_image, text, (x+5,h-5),cv.FONT_HERSHEY_COMPLEX,0.8, (0,0,0))
+    
