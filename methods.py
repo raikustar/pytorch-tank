@@ -8,6 +8,24 @@ from PIL import Image
 import random
 from typing import List,Tuple,Dict
 
+
+class SmoothBox:
+  """
+  Save box coordinates of model prediction. 
+  """
+  def __init__(self,history_length:int = 5):
+    self.history = []
+    self.history_length = history_length
+
+  def update(self, box):
+    self.history.append(box)
+    if len(self.history) > self.history_length:
+      self.history.pop(0)
+    return np.mean(self.history, axis=0)
+
+
+
+
 def prepareImage(image_path):
   original_image = cv.imread(image_path)
   h,w,c = original_image.shape
@@ -170,7 +188,8 @@ def scale_coords(coords:list,
 
 def yoloDetection(arr:np.ndarray, 
   original_image:np.ndarray, 
-  percentage_found:float = 0.25
+  percentage_found:float = 0.25,
+  box_col:Tuple[int,int,int] = (250,250,250) 
 ) -> None:
   
   
@@ -183,10 +202,12 @@ def yoloDetection(arr:np.ndarray,
     return
   
   coords = scale_coord(coords, original_image.shape, 640)
-  x,y,w,h = coords
-  # handle border colours
-  box_col = (250,0,250)
-  
+  smooth_history: int = 5
+  smooth_boxes = SmoothBox(smooth_history)
+  coords = smooth_boxes.update(coords)
+  coords = [int(i) for i in coords]
+  x,y,w,h = coords 
+
   box_font = cv.FONT_HERSHEY_COMPLEX
   text_color = (0,0,0)
 

@@ -10,6 +10,7 @@ from yolov5.utils.general import non_max_suppression
 from methods import reworkFrameType, yoloDetection
 
 
+
 # Collect proper data from model prediction
 def openVideo(model, video_path):
     formated_frame = reworkFrameType
@@ -17,6 +18,7 @@ def openVideo(model, video_path):
     
     video = cv.VideoCapture(video_path)
     fps = int(video.get(cv.CAP_PROP_FPS))
+    print(fps)
     
     if not video.isOpened():
         print("Cannot open video")
@@ -40,14 +42,15 @@ def openVideo(model, video_path):
 
         pred = non_max_suppression(pred, conf_thres=confidence,iou_thres=threshold)
         prediction = torch.detach(pred[0]).cpu().numpy()
-        for det in prediction:
-            yolo_detection(det, frame, percentage_found=0.25)
+
+        colors:int = [(0,250,200), (0,150,150), (180,250,0), (250,0,100), (0,250,250), (50,250,0), (250,0,250)]
+
+        for i, det in enumerate(prediction):
+            yolo_detection(det, frame, percentage_found=0.30, box_col=colors[i])
 
         cv.imshow('frame', frame)
         if cv.waitKey(fps) == ord('q'):
             break
-    
-    # nms through the entire pred list, to get respectable prediction results...
 
     video.release()
     cv.destroyAllWindows()
