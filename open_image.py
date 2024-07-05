@@ -61,16 +61,16 @@ def loadYOLOImage(real_image, model):
     pred = model(tensor_image)[0]
 
   pred = pred.unsqueeze(0)
-  confidence:float = 0.15
-  threshold:float = 0.3
+  confidence:float = 0.25
+  threshold:float = 0.5
 
   pred = non_max_suppression(pred, conf_thres=confidence,iou_thres=threshold)
   prediction = torch.detach(pred[0]).cpu().numpy()
-  
-  colors:int = [(0,250,200), (0,250,150), (180,250,0), (250,0,100), (0,250,250), (50,250,0), (250,0,250)]
+
+  colors:int = [(0,250,200), (0,250,100), (180,250,0), (250,0,100), (0,250,250), (50,250,0), (250,0,250)]
 
   for i, det in enumerate(prediction):
-    yolo_detection(det, image, percentage_found=0.30, box_col=colors[i])
+    yolo_detection(det, image, percentage_found=0.25, box_col=colors[i])
   
   cv.imshow("Detection", image)
   if cv.waitKey(0) == ord("q"):
@@ -81,9 +81,9 @@ def loadYOLOImage(real_image, model):
 def main():
 
   # Input data
-  real_image = "randomimages/mixed2.png"
+  real_image = "randomimages/tanks.jpg"
   # YOLOv5s model
-  model_yolo = modelReadyYOLO(model_file="mil.pt")
+  model_yolo = modelReadyYOLO(model_file="mil.pt") 
   loadYOLOImage(real_image, model=model_yolo)
 
 
@@ -93,3 +93,6 @@ def main():
   #openImageRNN(model=model_rnn, image_path=real_image)
 if __name__ == "__main__":
   main()
+
+
+
