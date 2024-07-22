@@ -1,3 +1,5 @@
+![alt text](https://raw.githubusercontent.com/raikustar/pytorch-tank/main/prediction.png)
+
 
  py -m virtualenv env
 --
