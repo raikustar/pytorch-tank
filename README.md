@@ -1,6 +1,6 @@
 ![alt text](https://raw.githubusercontent.com/raikustar/pytorch-tank/main/prediction.png)
 
-Trained on images of Russian tanks, BMP1/2 and BMP3. Will try to identify those 3 objects.
+Trained YOLOv5 model on images of Russian tanks, BMP1/2 and BMP3. Will try to identify those 3 objects.
 
  py -m virtualenv env
 --
