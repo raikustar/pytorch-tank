@@ -1,4 +1,4 @@
-# **This is outdated, and not functional anymore**
+# **This is outdated and not functional anymore**
 
 ![alt text](https://raw.githubusercontent.com/raikustar/pytorch-tank/main/prediction.png)
 
