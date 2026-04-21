@@ -5,5 +5,8 @@ def evaluate():
 
     result = model("bmp_3_5.jpg")
 
+    for res in result:
+        res.show()
+
 if __name__ == "__main__":
     evaluate()
