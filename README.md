@@ -19,7 +19,6 @@ pip install -r requirements.txt
 
 
 # Dataset
-
 path: ../pytorch-tank/datasets
 train: data/train_data
 val: data/test_data
@@ -29,4 +28,3 @@ names:
   1: Tank
   2: BMP1/2
   3: BMP3
-  
