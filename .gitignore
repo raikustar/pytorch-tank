@@ -1,0 +1,9 @@
+*.png
+*.jpg
+*.jpeg
+
+data*
+dataset.yaml
+
+env/
+runs/
