@@ -8,3 +8,25 @@ In the process of getting updated to a newer version. Will include:
 - docker image
 - improved model
 - trained from more data
+
+
+# 
+py -3.12 -m venv env
+pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu126
+pip install -r requirements.txt
+
+
+
+
+# Dataset
+
+path: ../pytorch-tank/datasets
+train: data/train_data
+val: data/test_data
+
+names:
+  0: background
+  1: Tank
+  2: BMP1/2
+  3: BMP3
+  
