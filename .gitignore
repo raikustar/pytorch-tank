@@ -1,0 +1,16 @@
+*.png
+*.jpg
+*.jpeg
+
+data*
+dataset.yaml
+
+**/env/
+**/venv/
+
+**/__pycache__/
+*.py[cod]
+*$py.class
+runs/
+
+*.env

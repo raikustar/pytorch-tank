@@ -1,0 +1,7 @@
+pika==1.4.0
+onnxruntime==1.26.0
+onnx==1.21.0
+opencv-python-headless==4.13.0.92
+python-dotenv==1.2.2
+pylint==4.0.5
+black==26.5.1

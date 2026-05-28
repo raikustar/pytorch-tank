@@ -1,0 +1,2 @@
+[MESSAGES CONTROL]
+disable=catching-non-exception, bad-exception-cause, no-name-in-module
