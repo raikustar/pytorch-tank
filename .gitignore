@@ -5,5 +5,12 @@
 data*
 dataset.yaml
 
-env/
+**/env/
+**/venv/
+
+**/__pycache__/
+*.py[cod]
+*$py.class
 runs/
+
+*.env
