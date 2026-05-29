@@ -1,4 +1,4 @@
-![alt text](https://raw.githubusercontent.com/raikustar/pytorch-tank/main/prediction.png)
+![alt text](https://raw.githubusercontent.com/raikustar/pytorch-tank/blob/main/prediction.png)
 
 Trained YOLOv26 model on images of Russian tanks, BMP1/2 and BMP3. Will try to identify those 3 objects.
 
@@ -28,3 +28,4 @@ names:
   1: Tank  
   2: BMP1/2  
   3: BMP3  
+  
