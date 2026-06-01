@@ -23,7 +23,7 @@ In the process of getting updated.
 In order to setup the prototype-vison container the following are needed:  
 Existing `RabbitMQ` container/localized service and some `backend framework` that has RabbitMQ configured.
 
-`Backend framework` will send a *base64 binary string* as the converted image data to `RabbitMQ Message Broker` and that gets listened and consumed by the prototype-vision container, which will update the update and produce a response to the `Backend framework` that is constantly listening to the container are a consumer.
+`Backend framework` will send a *base64 binary string* as the converted image data to `RabbitMQ Message Broker` and that gets listened and consumed by the prototype-vision container, which will update and produce a response to the `Backend framework` that is constantly listening to the container as a consumer.
 
 Flow of logic:  
 `Backend [producer]` -> `RabbitMQ Message Broker` -> `prototype-vision[consumer]`  
