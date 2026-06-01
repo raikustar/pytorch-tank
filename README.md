@@ -1,4 +1,14 @@
 ![alt text](https://github.com/raikustar/pytorch-tank/blob/main/prediction.png)
+> {
+    "label": "BMP3",
+    "score": 84,
+    "coordinates": [
+        75,
+        45,
+        949,
+        614
+    ]
+}
 
 Trained YOLOv26 model on images of Russian tanks, BMP1/2 and BMP3. Will try to identify those 3 objects.
 
