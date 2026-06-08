@@ -22,20 +22,17 @@ ML_PASSWORD = getenv("RABBITMQ_PASSWORD")
 
 MODEL_SESSION, IMG_SIZE, LABEL_NAMES = process_model()
 
-connection = BlockingConnection(
-    ConnectionParameters(
-        host=ML_HOST,
-        virtual_host="/",
-        credentials=PlainCredentials(ML_USER, ML_PASSWORD),
-        connection_attempts=3,
-        retry_delay=5,
+
+def start_connection() -> BlockingConnection:
+    return BlockingConnection(
+        ConnectionParameters(
+            host=ML_HOST,
+            virtual_host="/",
+            credentials=PlainCredentials(ML_USER, ML_PASSWORD),
+            connection_attempts=3,
+            retry_delay=5,
+        )
     )
-)
-
-channel = connection.channel()
-
-channel.queue_declare(queue=ML_REQUEST_QUEUE, durable=True)
-channel.queue_declare(queue=ML_RESPONSE_QUEUE, durable=True)
 
 
 def processing_response(channel, queue_id, status, result=None):
@@ -69,7 +66,15 @@ def on_message(channel, method, properties, body):
     channel.basic_ack(delivery_tag=method.delivery_tag)
 
 
-channel.basic_consume(queue=ML_REQUEST_QUEUE, on_message_callback=on_message)
+if __name__ == "__main__":
+    connection = start_connection()
+    channel = connection.channel()
 
-print("Waiting for messages from Spring Boot...")
-channel.start_consuming()  # Waiting
+    channel.queue_declare(queue=ML_REQUEST_QUEUE, durable=True)
+    channel.queue_declare(queue=ML_RESPONSE_QUEUE, durable=True)
+
+    channel.basic_consume(queue=ML_REQUEST_QUEUE, on_message_callback=on_message)
+    channel.basic_qos(prefetch_count=1)
+
+    print("Waiting for messages from producer")
+    channel.start_consuming()
