@@ -86,8 +86,8 @@ Dont use "guest", wont work in prod
 
 ## Dataset
 path: ../pytorch-tank/datasets  
-train: data/train_data (10% of data)  
-val: data/test_data (90% of data)  
+train: data/train_data (90% of data)  
+val: data/test_data (10% of data)  
 
 **Labels:**
   >1: Tank  
